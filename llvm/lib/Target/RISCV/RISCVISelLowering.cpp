@@ -72,6 +72,11 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
   if (Subtarget.hasStdExtD())
     addRegisterClass(MVT::f64, &RISCV::FPR64RegClass);
 
+  if (Subtarget.is64Bit() && Subtarget.hasStdExtP()) {
+    addRegisterClass(MVT::v8i8, &RISCV::GPRV64I8RegClass);
+    addRegisterClass(MVT::v2i32, &RISCV::GPRV64I32RegClass);
+  }
+
   // Compute derived properties from the register classes.
   computeRegisterProperties(STI.getRegisterInfo());
 
@@ -172,6 +177,13 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
     setTruncStoreAction(MVT::f64, MVT::f32, Expand);
     for (auto Op : FPOpToExtend)
       setOperationAction(Op, MVT::f64, Expand);
+  }
+
+  if (Subtarget.hasStdExtP() && Subtarget.is64Bit()) {
+    setOperationAction(ISD::BUILD_VECTOR, MVT::v2i32, Custom);
+    setOperationAction(ISD::INSERT_VECTOR_ELT, MVT::v2i32, Custom);
+    setOperationAction(ISD::VECTOR_SHUFFLE,   MVT::v2i32,Expand);
+    setOperationAction(ISD::BITCAST, MVT::v8i8, Expand);
   }
 
   setOperationAction(ISD::GlobalAddress, XLenVT, Custom);
@@ -392,7 +404,44 @@ SDValue RISCVTargetLowering::LowerOperation(SDValue Op,
     SDValue FPConv = DAG.getNode(RISCVISD::FMV_W_X_RV64, DL, MVT::f32, NewOp0);
     return FPConv;
   }
+  // --------------- vector related -------------------------
+  case ISD::INSERT_VECTOR_ELT:
+    assert(Subtarget.hasStdExtP() && "Unexpected custom legalisation");
+    return lowerVectorInsert(Op, DAG);
+  case ISD::BUILD_VECTOR:
+    assert(Subtarget.hasStdExtP() && "Unexpected custom legalisation");
+    return lowerVectorBuild(Op, DAG);
   }
+}
+
+SDValue RISCVTargetLowering::lowerVectorInsert(SDValue Op, SelectionDAG &DAG) const {
+  SDLoc DL(Op);
+  // input vector
+  SDValue V1 = Op.getOperand(0);
+  // input value
+  SDValue num = Op.getOperand(1);
+  auto *index = dyn_cast<ConstantSDNode>(Op.getOperand(2));
+  APInt pos = index->getAPIntValue();
+  EVT Ty = Op.getValueType();
+
+  assert(Ty == MVT::v2i32 && "Unexpected vector insert type");
+  
+  if (pos == 0) {
+    return DAG.getNode(RISCVISD::VINSERTB64_W, DL, MVT::v2i32, V1, num);
+  } else {
+    return DAG.getNode(RISCVISD::VINSERTT64_W, DL, MVT::v2i32, num, V1);
+  }
+}
+
+SDValue RISCVTargetLowering::lowerVectorBuild(SDValue Op, SelectionDAG &DAG) const {
+  SDLoc DL(Op);
+  SDValue V1 = Op.getOperand(0);
+  SDValue V2 = Op.getOperand(1);
+  EVT Ty = Op.getValueType();
+  
+  assert(Ty == MVT::v2i32 && "Unexpected vector insert type");
+    
+  return DAG.getNode(RISCVISD::VINSERTT64_W, DL, MVT::v2i32, V2, V1);
 }
 
 static SDValue getTargetNode(GlobalAddressSDNode *N, SDLoc DL, EVT Ty,
@@ -834,13 +883,45 @@ static SDValue customLegalizeToWOp(SDNode *N, SelectionDAG &DAG) {
   return DAG.getNode(ISD::TRUNCATE, DL, MVT::i32, NewRes);
 }
 
+/// Places new result values for the node in Results (their number
+/// and types must exactly match those of the original return values of
+/// the node), or leaves Results empty, which indicates that the node is not
+/// to be custom lowered after all.
+void RISCVTargetLowering::LowerOperationWrapper(SDNode *N,
+                                              SmallVectorImpl<SDValue> &Results,
+                                              SelectionDAG &DAG) const {
+  SDValue Res = LowerOperation(SDValue(N, 0), DAG);
+
+  if (!Res.getNode())
+    return;
+
+  // If the original node has one result, take the return value from
+  // LowerOperation as is. It might not be result number 0.
+  if (N->getNumValues() == 1) {
+    Results.push_back(Res);
+    return;
+  }
+
+  // If the original node has multiple results, then the return node should
+  // have the same number of results.
+  assert((N->getNumValues() == Res->getNumValues()) &&
+      "Lowering returned the wrong number of results!");
+
+  // Places new result values base on N result number.
+  for (unsigned I = 0, E = N->getNumValues(); I != E; ++I)
+    Results.push_back(Res.getValue(I));
+}
+
+
 void RISCVTargetLowering::ReplaceNodeResults(SDNode *N,
                                              SmallVectorImpl<SDValue> &Results,
                                              SelectionDAG &DAG) const {
   SDLoc DL(N);
   switch (N->getOpcode()) {
   default:
-    llvm_unreachable("Don't know how to custom type legalize this operation!");
+     // hook some operations to LowerOperation to handle
+    LowerOperationWrapper(N, Results, DAG);
+    break;
   case ISD::READCYCLECOUNTER: {
     assert(!Subtarget.is64Bit() &&
            "READCYCLECOUNTER only has custom type legalization on riscv32");
@@ -2395,6 +2476,10 @@ const char *RISCVTargetLowering::getTargetNodeName(unsigned Opcode) const {
     return "RISCVISD::FMV_X_ANYEXTW_RV64";
   case RISCVISD::READ_CYCLE_WIDE:
     return "RISCVISD::READ_CYCLE_WIDE";
+  case RISCVISD::VINSERTT64_W:
+    return "RISCVISD::VINSERTT64_W";
+  case RISCVISD::VINSERTB64_W:
+    return "RISCVISD::VINSERTB64_W";
   }
   return nullptr;
 }

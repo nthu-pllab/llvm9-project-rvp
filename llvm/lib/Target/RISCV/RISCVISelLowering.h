@@ -51,7 +51,10 @@ enum NodeType : unsigned {
   FMV_X_ANYEXTW_RV64,
   // READ_CYCLE_WIDE - A read of the 64-bit cycle CSR on a 32-bit target
   // (returns (Lo, Hi)). It takes a chain operand.
-  READ_CYCLE_WIDE
+  READ_CYCLE_WIDE,
+  // v2i32 packing
+  VINSERTB64_W,
+  VINSERTT64_W
 };
 }
 
@@ -78,6 +81,9 @@ public:
   bool hasBitPreservingFPLogic(EVT VT) const override;
 
   // Provide custom lowering hooks for some operations.
+  void LowerOperationWrapper(SDNode *N,
+                            SmallVectorImpl<SDValue> &Results,
+                            SelectionDAG &DAG) const override;
   SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
   void ReplaceNodeResults(SDNode *N, SmallVectorImpl<SDValue> &Results,
                           SelectionDAG &DAG) const override;
@@ -191,6 +197,8 @@ private:
   SDValue lowerRETURNADDR(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerShiftLeftParts(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerShiftRightParts(SDValue Op, SelectionDAG &DAG, bool IsSRA) const;
+  SDValue lowerVectorInsert(SDValue Op, SelectionDAG &DAG) const;
+  SDValue lowerVectorBuild(SDValue Op, SelectionDAG &DAG) const;
 
   bool isEligibleForTailCallOptimization(
       CCState &CCInfo, CallLoweringInfo &CLI, MachineFunction &MF,

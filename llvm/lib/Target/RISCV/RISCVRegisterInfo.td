@@ -101,6 +101,34 @@ def GPR : RegisterClass<"RISCV", [XLenVT], 32, (add
       [RegInfo<32,32,32>, RegInfo<64,64,64>, RegInfo<32,32,32>]>;
 }
 
+// Declare register for vector type in 64-bits
+def GPRV64I8 : RegisterClass<"RISCV", [v8i8], 64, (add
+    (sequence "X%u", 10, 17),
+    (sequence "X%u", 5, 7),
+    (sequence "X%u", 28, 31),
+    (sequence "X%u", 8, 9),
+    (sequence "X%u", 18, 27),
+    (sequence "X%u", 0, 4)
+  )> {
+  let RegInfos = RegInfoByHwMode<
+      [RV64,              DefaultMode],
+      [RegInfo<64,64,64>, RegInfo<64,64,64>]>;
+}
+
+def GPRV64I32 : RegisterClass<"RISCV", [v2i32], 64, (add
+    (sequence "X%u", 10, 17),
+    (sequence "X%u", 5, 7),
+    (sequence "X%u", 28, 31),
+    (sequence "X%u", 8, 9),
+    (sequence "X%u", 18, 27),
+    (sequence "X%u", 0, 4)
+  )> {
+  let RegInfos = RegInfoByHwMode<
+      [RV64,              DefaultMode],
+      [RegInfo<64,64,64>, RegInfo<64,64,64>]>;
+}
+
+
 // The order of registers represents the preferred allocation sequence.
 // Registers are listed in the order caller-save, callee-save, specials.
 def GPRNoX0 : RegisterClass<"RISCV", [XLenVT], 32, (add

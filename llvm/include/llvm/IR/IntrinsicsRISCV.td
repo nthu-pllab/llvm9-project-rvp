@@ -65,4 +65,13 @@ def int_riscv_masked_cmpxchg_i64
                                 llvm_i64_ty, llvm_i64_ty],
                 [IntrArgMemOnly, NoCapture<0>, ImmArg<4>]>;
 
+def int_riscv_simd_ssdot_v2i32 : GCCBuiltin<"__rv__v_smaqa">,
+    Intrinsic<[llvm_v2i32_ty], [llvm_v8i8_ty, llvm_v8i8_ty],
+              [IntrNoMem]>;
+
+def int_riscv_simd_sudot_v2i32 : GCCBuiltin<"__rv__v_smaqa_su ">,
+    Intrinsic<[llvm_v2i32_ty], [llvm_v8i8_ty, llvm_v8i8_ty],
+              [IntrNoMem]>;
+
+
 } // TargetPrefix = "riscv"

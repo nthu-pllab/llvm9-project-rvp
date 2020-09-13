@@ -286,6 +286,11 @@ class Load_ri<bits<3> funct3, string opcodestr>
     : RVInstI<funct3, OPC_LOAD, (outs GPR:$rd), (ins GPR:$rs1, simm12:$imm12),
               opcodestr, "$rd, ${imm12}(${rs1})">;
 
+let hasSideEffects = 0, mayLoad = 1, mayStore = 0 in
+class Load_ri_v<bits<3> funct3, string opcodestr, SDPatternOperator Op, RegisterClass cls> 
+              : RVInstI<funct3, OPC_LOAD, (outs cls:$rd), (ins GPR:$rs1, simm12:$imm12),
+              opcodestr, "$rd, ${imm12}(${rs1})">;    
+
 // Operands for stores are in the order srcreg, base, offset rather than
 // reflecting the order these fields are specified in the instruction
 // encoding.
@@ -293,6 +298,12 @@ let hasSideEffects = 0, mayLoad = 0, mayStore = 1 in
 class Store_rri<bits<3> funct3, string opcodestr>
     : RVInstS<funct3, OPC_STORE, (outs),
               (ins GPR:$rs2, GPR:$rs1, simm12:$imm12),
+              opcodestr, "$rs2, ${imm12}(${rs1})">;
+
+let hasSideEffects = 0, mayLoad = 0, mayStore = 1 in
+class Store_ri_v<bits<3> funct3, string opcodestr, SDPatternOperator Op, RegisterClass cls> :
+              RVInstS<funct3, OPC_STORE, (outs),
+              (ins cls:$rs2, GPR:$rs1, simm12:$imm12),
               opcodestr, "$rs2, ${imm12}(${rs1})">;
 
 let hasSideEffects = 0, mayLoad = 0, mayStore = 0 in
@@ -373,9 +384,15 @@ def LW  : Load_ri<0b010, "lw">;
 def LBU : Load_ri<0b100, "lbu">;
 def LHU : Load_ri<0b101, "lhu">;
 
+def LDVI8   : Load_ri_v<0b010, "ld", load, GPRV64I8>;
+def LDVI32  : Load_ri_v<0b010, "ld", load, GPRV64I32>;
+
 def SB : Store_rri<0b000, "sb">;
 def SH : Store_rri<0b001, "sh">;
 def SW : Store_rri<0b010, "sw">;
+
+def SDVI8   : Store_ri_v<0b010, "sd", store, GPRV64I8>;
+def SDVI32  : Store_ri_v<0b010, "sd", store, GPRV64I32>;
 
 // ADDI isn't always rematerializable, but isReMaterializable will be used as
 // a hint which is verified in isReallyTriviallyReMaterializable.
@@ -1058,11 +1075,35 @@ defm : LdPat<sextloadi32, LW>;
 defm : LdPat<extloadi32, LW>;
 defm : LdPat<zextloadi32, LWU>;
 defm : LdPat<load, LD>;
+defm : LdPat<load, LDVI32>;
+defm : LdPat<load, LDVI8>;
+
+// def : Pat<(v2i32(load GPR:$rs1)), (LDVI32 GPR:$rs1, 0)>;
+// def : Pat<(v2i32(load AddrFI:$rs1)), (LDVI32 AddrFI:$rs1, 0)>;
+// def : Pat<(v2i32(load (add GPR:$rs1, simm12:$imm12))),
+//           (LDVI32 GPR:$rs1, simm12:$imm12)>;
+// def : Pat<(v2i32(load (add AddrFI:$rs1, simm12:$imm12))),
+//             (LDVI32 AddrFI:$rs1, simm12:$imm12)>;
+// def : Pat<(v2i32(load (IsOrAdd AddrFI:$rs1, simm12:$imm12))),
+//             (LDVI32 AddrFI:$rs1, simm12:$imm12)>;
+
+// def : Pat<(v8i8(load GPR:$rs1)), (LDVI8 GPR:$rs1, 0)>;
+// def : Pat<(v8i8(load AddrFI:$rs1)), (LDVI8 AddrFI:$rs1, 0)>;
+// def : Pat<(v8i8(load (add GPR:$rs1, simm12:$imm12))),
+//           (LDVI8 GPR:$rs1, simm12:$imm12)>;
+// def : Pat<(v8i8(load (add AddrFI:$rs1, simm12:$imm12))),
+//             (LDVI8 AddrFI:$rs1, simm12:$imm12)>;
+// def : Pat<(v8i8(load (IsOrAdd AddrFI:$rs1, simm12:$imm12))),
+//             (LDVI8 AddrFI:$rs1, simm12:$imm12)>;
+
 
 /// Stores
 
 defm : StPat<truncstorei32, SW, GPR>;
 defm : StPat<store, SD, GPR>;
+defm : StPat<store, SDVI8, GPRV64I8>;
+defm : StPat<store, SDVI32, GPRV64I32>;
+
 } // Predicates = [IsRV64]
 
 /// readcyclecounter
@@ -1084,3 +1125,4 @@ include "RISCVInstrInfoA.td"
 include "RISCVInstrInfoF.td"
 include "RISCVInstrInfoD.td"
 include "RISCVInstrInfoC.td"
+include "RISCVInstrInfoP.td"
