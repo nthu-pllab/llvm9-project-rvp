@@ -54,7 +54,9 @@ enum NodeType : unsigned {
   READ_CYCLE_WIDE,
   // v2i32 packing
   VINSERTB64_W,
-  VINSERTT64_W
+  VINSERTT64_W,
+  VEXTRACTT64_W,
+  VEXTRACTB64_W
 };
 }
 
@@ -197,6 +199,7 @@ private:
   SDValue lowerRETURNADDR(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerShiftLeftParts(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerShiftRightParts(SDValue Op, SelectionDAG &DAG, bool IsSRA) const;
+  SDValue lowerVectorExtract(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerVectorInsert(SDValue Op, SelectionDAG &DAG) const;
   SDValue lowerVectorBuild(SDValue Op, SelectionDAG &DAG) const;
 

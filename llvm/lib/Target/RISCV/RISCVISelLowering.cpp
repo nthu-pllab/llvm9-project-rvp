@@ -182,6 +182,7 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
   if (Subtarget.hasStdExtP() && Subtarget.is64Bit()) {
     setOperationAction(ISD::BUILD_VECTOR, MVT::v2i32, Custom);
     setOperationAction(ISD::INSERT_VECTOR_ELT, MVT::v2i32, Custom);
+    setOperationAction(ISD::EXTRACT_VECTOR_ELT, MVT::v2i32, Custom);
     setOperationAction(ISD::VECTOR_SHUFFLE,   MVT::v2i32,Expand);
     setOperationAction(ISD::BITCAST, MVT::v8i8, Expand);
   }
@@ -405,6 +406,9 @@ SDValue RISCVTargetLowering::LowerOperation(SDValue Op,
     return FPConv;
   }
   // --------------- vector related -------------------------
+  case ISD::EXTRACT_VECTOR_ELT:     
+    assert(Subtarget.hasStdExtP() && "Unexpected custom legalisation");
+    return lowerVectorExtract(Op, DAG);
   case ISD::INSERT_VECTOR_ELT:
     assert(Subtarget.hasStdExtP() && "Unexpected custom legalisation");
     return lowerVectorInsert(Op, DAG);
@@ -412,6 +416,45 @@ SDValue RISCVTargetLowering::LowerOperation(SDValue Op,
     assert(Subtarget.hasStdExtP() && "Unexpected custom legalisation");
     return lowerVectorBuild(Op, DAG);
   }
+}
+
+SDValue RISCVTargetLowering::lowerVectorExtract(SDValue Op, SelectionDAG &DAG) const {
+  
+  SDLoc DL(Op);
+  SDValue V1 = Op.getOperand(0);
+  auto *V2 = dyn_cast<ConstantSDNode>(Op.getOperand(1));
+  APInt insert_pos = V2->getAPIntValue();
+  EVT fromTy = V1.getValueType();
+
+  EVT RegTy = (Subtarget.is64Bit()) ? MVT::i64 : MVT::i32;
+  int lowShift;
+  int RVExtractB;
+  int RVExtractT;
+
+  assert(fromTy == MVT::v2i32 && "Unexpected vector extract type");
+
+  SDValue signed_bit;
+  SDValue dummy = DAG.getConstant(0, DL, RegTy);
+  SDValue rawResult;
+  SDValue mask;
+  lowShift = 32;
+
+  if (insert_pos == 0) {
+    rawResult = DAG.getNode(RISCVISD::VEXTRACTB64_W, DL, RegTy, dummy, V1);
+  } else {
+    rawResult = DAG.getNode(RISCVISD::VEXTRACTT64_W, DL, RegTy, dummy, V1);
+  }
+  
+  signed_bit = DAG.getNode(ISD::SHL, DL, RegTy, 
+                  DAG.getNode(ISD::AND, DL, RegTy, rawResult, DAG.getConstant(0x80000000,DL,RegTy)),
+                  DAG.getConstant(lowShift, DL, RegTy));
+  
+  mask = DAG.getNode(ISD::SRA, DL, RegTy, signed_bit, DAG.getConstant(lowShift - 1, DL, RegTy));
+
+  SDValue finalResult = DAG.getNode(ISD::OR, DL, RegTy, rawResult, mask);
+
+  return finalResult;
+  
 }
 
 SDValue RISCVTargetLowering::lowerVectorInsert(SDValue Op, SelectionDAG &DAG) const {
@@ -2480,6 +2523,10 @@ const char *RISCVTargetLowering::getTargetNodeName(unsigned Opcode) const {
     return "RISCVISD::VINSERTT64_W";
   case RISCVISD::VINSERTB64_W:
     return "RISCVISD::VINSERTB64_W";
+  case RISCVISD::VEXTRACTT64_W:
+    return "RISCVISD::VEXTRACTT64_W";
+  case RISCVISD::VEXTRACTB64_W:
+    return "RISCVISD::VEXTRACTB64_W";
   }
   return nullptr;
 }

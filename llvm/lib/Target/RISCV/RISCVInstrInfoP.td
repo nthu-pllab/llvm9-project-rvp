@@ -20,7 +20,8 @@ def SDT_RISCVVectorInEltT64_W       : SDTypeProfile<1, 2,  [SDTCisVT<0, v2i32>,
                                                             SDTCisVT<1, i64>, SDTCisVT<2, v2i32>]>;
 def SDT_RISCVVectorInEltB64_W       : SDTypeProfile<1, 2,  [SDTCisVT<0, v2i32>, 
                                                             SDTCisVT<1, v2i32>, SDTCisVT<2, i64>]>;                                                            
-                                          
+def SDT_RISCVVectorExElt64_W        : SDTypeProfile<1, 2,  [SDTCisVT<0, i64>, 
+                                                            SDTCisVT<1, i64>, SDTCisVT<2, v2i32>]>;                                          
 
 //===----------------------------------------------------------------------===//
 // RISC-V P extension specific DAG Nodes.
@@ -28,6 +29,9 @@ def SDT_RISCVVectorInEltB64_W       : SDTypeProfile<1, 2,  [SDTCisVT<0, v2i32>,
 
 def VInseretT64_W           : SDNode<"RISCVISD::VINSERTT64_W", SDT_RISCVVectorInEltT64_W>; 
 def VInseretB64_W           : SDNode<"RISCVISD::VINSERTB64_W", SDT_RISCVVectorInEltB64_W>;
+
+def VExtractT64_W           : SDNode<"RISCVISD::VEXTRACTT64_W", SDT_RISCVVectorExElt64_W>;
+def VExtractB64_W           : SDNode<"RISCVISD::VEXTRACTB64_W", SDT_RISCVVectorExElt64_W>;
 
 
 //===----------------------------------------------------------------------===//
@@ -54,18 +58,29 @@ def VINSERTB64_W : Pseudo<(outs GPRV64I32:$dst), (ins GPRV64I32:$rs1, GPR:$rs2),
                    [(set GPRV64I32:$dst, (VInseretB64_W GPRV64I32:$rs1, GPR:$rs2))]>,
                    Requires<[IsRV64]> {
                         let AsmString = "pktb32\t$dst, $rs1, $rs2";
-                    }                        
+                    }
+
+// unpack
+def VEXTRACTB64_W : Pseudo<(outs GPR:$dst), (ins GPR:$rs1, GPRV64I32:$rs2),
+                   [(set GPR:$dst, (VExtractB64_W GPR:$rs1, GPRV64I32:$rs2))]>,
+                   Requires<[IsRV64]> {
+                        let AsmString = "pkbb32\t$dst, $rs1, $rs2";
+                    }
+
+def VEXTRACTT64_W : Pseudo<(outs GPR:$dst), (ins GPR:$rs1, GPRV64I32:$rs2),
+                   [(set GPR:$dst, (VExtractT64_W GPR:$rs1, GPRV64I32:$rs2))]>,
+                   Requires<[IsRV64]> {
+                        let AsmString = "pkbt32\t$dst, $rs1, $rs2";
+                    }             
 
 // ----------------------- dot procut ----------------------- 
 
-// transform int_riscv_simd_ssdot_v2i32(SDN) to vdot_product_ss_B(SDN)
 def vdot_product_ss_B : Pseudo<(outs GPRV64I32:$dst), (ins GPRV64I8:$rs1, GPRV64I8:$rs2),
                       [(set GPRV64I32:$dst, (int_riscv_simd_ssdot_v2i32 GPRV64I8:$rs1, GPRV64I8:$rs2))]>,
                       Requires<[IsRV64]> {
                         let AsmString = "smaqa\t$dst, $rs1, $rs2";
                     }
 
-// transform int_riscv_simd_sudot_v2i32(SDN) to vdot_product_su_B(SDN)
 def vdot_product_su_B : Pseudo<(outs GPRV64I32:$dst), (ins GPRV64I8:$rs1, GPRV64I8:$rs2),
                       [(set GPRV64I32:$dst, (int_riscv_simd_sudot_v2i32 GPRV64I8:$rs1, GPRV64I8:$rs2))]>,
                       Requires<[IsRV64]> {
