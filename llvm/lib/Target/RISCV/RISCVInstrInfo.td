@@ -385,6 +385,7 @@ def LBU : Load_ri<0b100, "lbu">;
 def LHU : Load_ri<0b101, "lhu">;
 
 def LDVI8   : Load_ri_v<0b010, "ld", load, GPRV64I8>;
+def LDVI16   : Load_ri_v<0b010, "ld", load, GPRV64I16>;
 def LDVI32  : Load_ri_v<0b010, "ld", load, GPRV64I32>;
 
 def SB : Store_rri<0b000, "sb">;
@@ -392,6 +393,7 @@ def SH : Store_rri<0b001, "sh">;
 def SW : Store_rri<0b010, "sw">;
 
 def SDVI8   : Store_ri_v<0b010, "sd", store, GPRV64I8>;
+def SDVI16   : Store_ri_v<0b010, "sd", store, GPRV64I16>;
 def SDVI32  : Store_ri_v<0b010, "sd", store, GPRV64I32>;
 
 // ADDI isn't always rematerializable, but isReMaterializable will be used as
@@ -1076,6 +1078,7 @@ defm : LdPat<extloadi32, LW>;
 defm : LdPat<zextloadi32, LWU>;
 defm : LdPat<load, LD>;
 defm : LdPat<load, LDVI32>;
+defm : LdPat<load, LDVI16>;
 defm : LdPat<load, LDVI8>;
 
 // def : Pat<(v2i32(load GPR:$rs1)), (LDVI32 GPR:$rs1, 0)>;
@@ -1102,6 +1105,7 @@ defm : LdPat<load, LDVI8>;
 defm : StPat<truncstorei32, SW, GPR>;
 defm : StPat<store, SD, GPR>;
 defm : StPat<store, SDVI8, GPRV64I8>;
+defm : StPat<store, SDVI16, GPRV64I16>;
 defm : StPat<store, SDVI32, GPRV64I32>;
 
 } // Predicates = [IsRV64]

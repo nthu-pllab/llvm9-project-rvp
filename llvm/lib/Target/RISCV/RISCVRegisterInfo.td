@@ -115,6 +115,19 @@ def GPRV64I8 : RegisterClass<"RISCV", [v8i8], 64, (add
       [RegInfo<64,64,64>, RegInfo<64,64,64>]>;
 }
 
+def GPRV64I16 : RegisterClass<"RISCV", [v4i16], 64, (add
+    (sequence "X%u", 10, 17),
+    (sequence "X%u", 5, 7),
+    (sequence "X%u", 28, 31),
+    (sequence "X%u", 8, 9),
+    (sequence "X%u", 18, 27),
+    (sequence "X%u", 0, 4)
+  )> {
+  let RegInfos = RegInfoByHwMode<
+      [RV64,              DefaultMode],
+      [RegInfo<64,64,64>, RegInfo<64,64,64>]>;
+}
+
 def GPRV64I32 : RegisterClass<"RISCV", [v2i32], 64, (add
     (sequence "X%u", 10, 17),
     (sequence "X%u", 5, 7),

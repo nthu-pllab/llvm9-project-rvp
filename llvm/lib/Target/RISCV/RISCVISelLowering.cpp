@@ -74,6 +74,7 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
 
   if (Subtarget.is64Bit() && Subtarget.hasStdExtP()) {
     addRegisterClass(MVT::v8i8, &RISCV::GPRV64I8RegClass);
+    addRegisterClass(MVT::v4i16, &RISCV::GPRV64I16RegClass);
     addRegisterClass(MVT::v2i32, &RISCV::GPRV64I32RegClass);
   }
 
@@ -185,6 +186,7 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
     setOperationAction(ISD::EXTRACT_VECTOR_ELT, MVT::v2i32, Custom);
     setOperationAction(ISD::VECTOR_SHUFFLE,   MVT::v2i32,Expand);
     setOperationAction(ISD::BITCAST, MVT::v8i8, Expand);
+    setOperationAction(ISD::BITCAST, MVT::v4i16, Expand);
   }
 
   setOperationAction(ISD::GlobalAddress, XLenVT, Custom);

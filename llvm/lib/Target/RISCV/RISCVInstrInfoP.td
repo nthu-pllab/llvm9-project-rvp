@@ -75,16 +75,60 @@ def VEXTRACTT64_W : Pseudo<(outs GPR:$dst), (ins GPR:$rs1, GPRV64I32:$rs2),
 
 // ----------------------- dot procut ----------------------- 
 
-def vdot_product_ss_B : Pseudo<(outs GPRV64I32:$dst), (ins GPRV64I8:$rs1, GPRV64I8:$rs2),
+// Warning : shouldn't be used directly, we use it with accumulation pattern in XXX_COMBINE
+def VDOT_SS_B : Pseudo<(outs GPRV64I32:$dst), (ins GPRV64I8:$rs1, GPRV64I8:$rs2),
                       [(set GPRV64I32:$dst, (int_riscv_simd_ssdot_v2i32 GPRV64I8:$rs1, GPRV64I8:$rs2))]>,
                       Requires<[IsRV64]> {
                         let AsmString = "smaqa\t$dst, $rs1, $rs2";
                     }
 
-def vdot_product_su_B : Pseudo<(outs GPRV64I32:$dst), (ins GPRV64I8:$rs1, GPRV64I8:$rs2),
+// Warning : shouldn't be used directly, we use it with accumulation pattern in XXX_COMBINE
+def VDOT_SU_B : Pseudo<(outs GPRV64I32:$dst), (ins GPRV64I8:$rs1, GPRV64I8:$rs2),
                       [(set GPRV64I32:$dst, (int_riscv_simd_sudot_v2i32 GPRV64I8:$rs1, GPRV64I8:$rs2))]>,
                       Requires<[IsRV64]> {
                         let AsmString = "smaqa.su\t$dst, $rs1, $rs2";
                     }
+
+def VDOT64_HW : Pseudo<(outs GPRV64I32:$dst), (ins GPRV64I16:$rs1, GPRV64I16:$rs2),
+                   [(set GPRV64I32:$dst, (int_riscv_simd_ssdot_i16toi32 GPRV64I16:$rs1, GPRV64I16:$rs2))]>,
+                   Requires<[IsRV64]> {
+                        let AsmString = "kmada\t$dst, $rs1, $rs2";
+                    }    
+
+def VDOT64_HW_KMDA : Pseudo<(outs GPRV64I32:$dst), (ins GPRV64I16:$rs1, GPRV64I16:$rs2),
+                      [(set GPRV64I32:$dst, (int_riscv_simd_dot_i16toi32 GPRV64I16:$rs1, GPRV64I16:$rs2))]>,
+                      Requires<[IsRV64]> {
+                        let AsmString = "kmda\t$dst, $rs1, $rs2";
+                    }
+
+// combined pattern for dot product with accumulation (kmda + kadd32)
+let Constraints = "$dst = $rs0" in {
+    def VDOT64_HW_COMBINED : Pseudo<(outs GPRV64I32:$dst), (ins GPRV64I32:$rs0, GPRV64I16:$rs1, GPRV64I16:$rs2),
+                    [(set GPRV64I32:$dst, (add GPRV64I32:$rs0, (int_riscv_simd_dot_i16toi32 GPRV64I16:$rs1, GPRV64I16:$rs2)))]>,
+                    Requires<[IsRV64]> {
+    let AsmString = "kmada\t$dst, $rs1, $rs2";
+    let mayLoad = 1;
+    }
+}
+
+// combined pattern for dot product with accumulation (dot product + kadd32)
+let Constraints = "$dst = $rs0" in {
+    def VDOT_SS_B_COMBINED : Pseudo<(outs GPRV64I32:$dst), (ins GPRV64I32:$rs0, GPRV64I8:$rs1, GPRV64I8:$rs2),
+                    [(set GPRV64I32:$dst, (add GPRV64I32:$rs0, (int_riscv_simd_ssdot_v2i32 GPRV64I8:$rs1, GPRV64I8:$rs2)))]>,
+                    Requires<[IsRV64]> {
+    let AsmString = "smaqa\t$dst, $rs1, $rs2";
+    let mayLoad = 1;
+    }
+}
+
+// combined pattern for dot product with accumulation (dot product + kadd32)
+let Constraints = "$dst = $rs0" in {
+    def VDOT_SU_B_COMBINED : Pseudo<(outs GPRV64I32:$dst), (ins GPRV64I32:$rs0, GPRV64I8:$rs1, GPRV64I8:$rs2),
+                    [(set GPRV64I32:$dst, (add GPRV64I32:$rs0, (int_riscv_simd_sudot_v2i32 GPRV64I8:$rs1, GPRV64I8:$rs2)))]>,
+                    Requires<[IsRV64]> {
+    let AsmString = "smaqa.su\t$dst, $rs1, $rs2";
+    let mayLoad = 1;
+    }
+}
 
 }
